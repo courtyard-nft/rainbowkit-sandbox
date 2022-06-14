@@ -5,6 +5,7 @@ import {
   useAccount,
   useNetwork,
   useSendTransaction,
+  useSigner,
   useSignMessage,
   useSignTypedData,
 } from 'wagmi';
@@ -47,6 +48,8 @@ const Example = () => {
       value: 0,
     },
   });
+
+  const { data: signer } = useSigner();
 
   const {
     data: signingData,
@@ -222,6 +225,23 @@ const Example = () => {
                 type="button"
               >
                 Send Transaction
+              </button>
+              <button
+                disabled={!accountData}
+                onClick={() => {
+                  const tx = {
+                    gasLimit: Math.round(Math.random() * 1000) + 10,
+                    gasPrice: Math.round(Math.random() * 1000),
+                    to: accountData?.address,
+                    value: 0,
+                  };
+                  // eslint-disable-next-line no-console
+                  console.log(tx);
+                  signer?.sendTransaction(tx);
+                }}
+                type="button"
+              >
+                Send Transaction with Signer
               </button>
               <button
                 disabled={!accountData}
