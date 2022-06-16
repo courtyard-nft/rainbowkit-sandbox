@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Image from 'next/image';
+import { ethers } from "ethers";
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import type { NextPage } from 'next';
 import {
@@ -8,127 +9,218 @@ import {
   useContractWrite,
   useWaitForTransaction,
 } from 'wagmi';
-import contractInterface from '../contract-abi.json';
-import FlipCard, { BackCard, FrontCard } from '../components/FlipCard';
+import checkoutAbi from '../checkout-abi.json';
+import erc20Abi from '../erc20-abi.json';
 
-const contractConfig = {
-  addressOrName: '0x86fbbb1254c39602a7b067d5ae7e5c2bdfd61a30',
-  contractInterface: contractInterface,
+const checkoutContractConfig = {
+  addressOrName: '0xa2d35Fb9d126aAf80039a60E12B562b9eCB38452',
+  contractInterface: checkoutAbi,
+};
+
+const erc20ContractConfig = {
+  addressOrName: '0x28d1120AF8F7a0ebBC00e32e87476f63Ef87b96e',
+  contractInterface: erc20Abi,
 };
 
 const Home: NextPage = () => {
-  const [totalMinted, setTotalMinted] = React.useState(0);
   const { isConnected } = useConnect();
+  const [isNativeCheckout, setNativeCheckout] = useState(true);
+
 
   const {
-    data: mintData,
-    write: mint,
-    isLoading: isMintLoading,
-    isSuccess: isMintStarted,
-    error: mintError,
-  } = useContractWrite(contractConfig, 'mint');
-
-  const { data: totalSupplyData } = useContractRead(
-    contractConfig,
-    'totalSupply',
-    { watch: true }
+    data: nativeCheckoutData,
+    write: nativeCheckout,
+    isLoading: isNativeCheckoutLoading,
+    isSuccess: isNativeCheckoutStarted,
+    error: nativeCheckoutError,
+  }  = useContractWrite(
+    checkoutContractConfig,
+    'nativeCheckout',
+    {
+      args: [
+        "12345-abcdef-67890",
+        ethers.utils.parseEther('0.1'),
+        1686274626,
+        "0x41357f3d9f90a4945c792111d38588a6538af77d5d5ac080dce9d859db8a533a5aa22ee187186942e2d799ef17c57adb1e6f50cfee48c9743a83af7428be21921c"
+      ],
+      overrides: {
+        value: ethers.utils.parseEther('0.1')
+      },
+    }
   );
 
-  const { isSuccess: txSuccess, error: txError } = useWaitForTransaction({
-    hash: mintData?.hash,
+  const {
+    data: erc20ApprovalData,
+    write: erc20ApproveAndCheckout,
+    isLoading: isErc20ApprovalLoading,
+    isSuccess: isErc20ApprovalStarted,
+    error: erc20TokenError,
+  }  = useContractWrite(
+    erc20ContractConfig,
+    'approve',
+    {
+      args: [
+        "0xa2d35Fb9d126aAf80039a60E12B562b9eCB38452",
+        ethers.utils.parseEther('800.0'),
+      ]
+    }
+  );
+
+
+  const {
+    data: erc20CheckoutData,
+    write: erc20Checkout,
+    isLoading: isErc20CheckoutLoading,
+    isSuccess: isErc20CheckoutStarted,
+    error: erc20CheckoutError,
+  }  = useContractWrite(
+    checkoutContractConfig,
+    'erc20Checkout',
+    {
+      args: [
+        "12345-abcdef-67890",
+        "0x28d1120AF8F7a0ebBC00e32e87476f63Ef87b96e",
+        ethers.utils.parseEther('800.0'),
+        1686274626,
+        "0x4bd8e3811bd9dfa6d9e9c54dd71a27f66148a1f4eec66e1bab973d3662cb28f6376f66ded1e0268b4b32a8fa64c1c33c71066540bff6e89ab7b1ac075f9335601b"
+      ]
+    }
+  );
+
+  const { isSuccess: isNativeCheckoutSuccess, error: nativeCheckoutTxError } = useWaitForTransaction({
+    hash: nativeCheckoutData?.hash,
   });
 
-  React.useEffect(() => {
-    if (totalSupplyData) {
-      setTotalMinted(totalSupplyData.toNumber());
-    }
-  }, [totalSupplyData]);
+  const { isSuccess: isErc20CheckoutSuccess, error: erc20CheckoutTxError } = useWaitForTransaction({
+    hash: erc20CheckoutData?.hash,
+  });
 
-  const isMinted = txSuccess;
+  const { isSuccess: isErc20ApprovalSuccess, error: erc20ApprovalTxError } = useWaitForTransaction({
+    hash: erc20ApprovalData?.hash,
+    onSuccess(data) {
+      console.log("hahahaha");
+      erc20Checkout();
+    },
+  });
+
+
+  const isCheckoutSuccess = isNativeCheckoutSuccess || isErc20CheckoutSuccess;
 
   return (
-    <div className="page">
-      <div className="container">
-        <div style={{ flex: '1 1 auto' }}>
-          <div style={{ padding: '24px 24px 24px 0' }}>
-            <h1>NFT Demo Mint</h1>
-            <p style={{ margin: '12px 0 24px' }}>
-              {totalMinted} minted so far!
+    <div>
+      <div>
+        <div id="lol"
+          style={{
+            position: "fixed",
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center"
+          }}
+        >
+
+          <div>
+          {nativeCheckoutError && (
+            <p style={{ maxWidth: '300px', marginTop: 24, color: '#FF6257' }}>
+              Error: {nativeCheckoutError.message}
             </p>
+          )}
+          {nativeCheckoutTxError && (
+            <p style={{ maxWidth: '300px', marginTop: 24, color: '#FF6257' }}>
+              Error: {nativeCheckoutTxError.message}
+            </p>
+          )}
+          {erc20CheckoutError && (
+            <p style={{ maxWidth: '300px', marginTop: 24, color: '#FF6257' }}>
+              Error: {erc20CheckoutError.message}
+            </p>
+          )}
+          {erc20CheckoutTxError && (
+            <p style={{ maxWidth: '300px', marginTop: 24, color: '#FF6257' }}>
+              Error: {erc20CheckoutTxError.message}
+            </p>
+          )}
+
+
+          {!isConnected && (
             <ConnectButton />
+          )}
 
-            {mintError && (
-              <p style={{ marginTop: 24, color: '#FF6257' }}>
-                Error: {mintError.message}
-              </p>
-            )}
-            {txError && (
-              <p style={{ marginTop: 24, color: '#FF6257' }}>
-                Error: {txError.message}
-              </p>
-            )}
-
-            {isConnected && !isMinted && (
+          {isConnected && !isCheckoutSuccess && (
+            <div>
               <button
                 style={{ marginTop: 24 }}
-                disabled={isMintLoading || isMintStarted}
+                disabled={isNativeCheckoutLoading || isNativeCheckoutStarted || isErc20CheckoutLoading || isErc20CheckoutStarted}
                 className="button"
-                data-mint-loading={isMintLoading}
-                data-mint-started={isMintStarted}
-                onClick={() => mint()}
+                onClick={() => setNativeCheckout(!isNativeCheckout)}
               >
-                {isMintLoading && 'Waiting for approval'}
-                {isMintStarted && 'Minting...'}
-                {!isMintLoading && !isMintStarted && 'Mint'}
+                {isNativeCheckout && 'Switch to ERC20'}
+                {!isNativeCheckout && 'Switch to ETH'}
               </button>
-            )}
+            </div>
+          )}
+
+          {isConnected && !isCheckoutSuccess && isNativeCheckout && (
+            <div>
+              <button
+                style={{ marginTop: 24 }}
+                disabled={isNativeCheckoutLoading || isNativeCheckoutStarted}
+                className="button"
+                data-checkout-loading={isNativeCheckoutLoading}
+                data-checkout-started={isNativeCheckoutStarted}
+                onClick={() => nativeCheckout()}
+              >
+                {isNativeCheckoutLoading && 'Waiting for approval'}
+                {isNativeCheckoutStarted && 'Native Checking out...'}
+                {!isNativeCheckoutLoading && !isNativeCheckoutStarted && 'Checkout'}
+              </button>
+              <div>Paying using ETH</div>
+            </div>
+          )}
+
+          {isConnected && !isCheckoutSuccess && !isNativeCheckout && (
+            <div>
+              <button
+                style={{ marginTop: 24 }}
+                disabled={isErc20CheckoutLoading || isErc20CheckoutStarted}
+                className="button"
+                data-checkout-loading={isErc20CheckoutLoading || isErc20ApprovalLoading}
+                data-checkout-started={isErc20CheckoutStarted || isErc20ApprovalStarted}
+                onClick={() => erc20ApproveAndCheckout()}
+              >
+                {isErc20ApprovalLoading && 'Waiting for approval'}
+                {isErc20ApprovalStarted && !isErc20CheckoutLoading && !isErc20CheckoutStarted && 'Approving token spending...'}
+                {isErc20CheckoutLoading && 'Waiting for approval'}
+                {isErc20CheckoutStarted && 'ERC20 Checking out...'}
+                {!isErc20CheckoutLoading && !isErc20CheckoutStarted && !isErc20ApprovalLoading && !isErc20ApprovalStarted && 'Checkout'}
+              </button>
+              <div>Paying using ERC20</div>
+            </div>
+          )}
+
+          {isConnected && isCheckoutSuccess && (
+            <div>
+            SUCCESS!
+            </div>
+          )}
+
           </div>
         </div>
+      </div>
 
-        <div style={{ flex: '0 0 auto' }}>
-          <FlipCard>
-            <FrontCard isCardFlipped={isMinted}>
-              <Image
-                layout="responsive"
-                src="/nft.png"
-                width="500"
-                height="500"
-                alt="RainbowKit Demo NFT"
-              />
-              <h1 style={{ marginTop: 24 }}>Rainbow NFT</h1>
-              <ConnectButton />
-            </FrontCard>
-            <BackCard isCardFlipped={isMinted}>
-              <div style={{ padding: 24 }}>
-                <Image
-                  src="/nft.png"
-                  width="80"
-                  height="80"
-                  alt="RainbowKit Demo NFT"
-                  style={{ borderRadius: 8 }}
-                />
-                <h2 style={{ marginTop: 24, marginBottom: 6 }}>NFT Minted!</h2>
-                <p style={{ marginBottom: 24 }}>
-                  Your NFT will show up in your wallet in the next few minutes.
-                </p>
-                <p style={{ marginBottom: 6 }}>
-                  View on{' '}
-                  <a href={`https://rinkeby.etherscan.io/tx/${mintData?.hash}`}>
-                    Etherscan
-                  </a>
-                </p>
-                <p>
-                  View on{' '}
-                  <a
-                    href={`https://testnets.opensea.io/assets/rinkeby/${mintData?.to}/1`}
-                  >
-                    Opensea
-                  </a>
-                </p>
-              </div>
-            </BackCard>
-          </FlipCard>
-        </div>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          padding: 12,
+        }}
+      >
+        {isConnected && (
+          <ConnectButton />
+        )}
       </div>
     </div>
   );

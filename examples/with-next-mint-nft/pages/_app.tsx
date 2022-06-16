@@ -12,32 +12,25 @@ import { alchemyProvider } from 'wagmi/providers/alchemy';
 import { publicProvider } from 'wagmi/providers/public';
 
 const { chains, provider, webSocketProvider } = configureChains(
-  [
-    chain.rinkeby,
-    ...(process.env.NEXT_PUBLIC_ENABLE_TESTNETS === 'true'
-      ? [chain.rinkeby]
-      : []),
-  ],
+  [chain.rinkeby],
   [
     alchemyProvider({ alchemyId: '_gg7wSSi0KMBsdKnGVfHDueq6xMB9EkC' }),
     publicProvider(),
   ]
 );
 
-const { wallets } = getDefaultWallets({
-  appName: 'RainbowKit Mint NFT Demo',
-  chains,
-});
-
 const demoAppInfo = {
-  appName: 'RainbowKit Mint NFT Demo',
+  appName: 'Courtyard Test',
 };
 
 const connectors = connectorsForWallets([
-  ...wallets,
   {
-    groupName: 'Other',
-    wallets: [wallet.argent({ chains }), wallet.trust({ chains })],
+    groupName: 'Available wallets',
+    wallets: [
+      wallet.metaMask({ chains }),
+      wallet.ledger({ chains }),
+      wallet.walletConnect({ chains })
+    ],
   },
 ]);
 
